@@ -12,10 +12,12 @@ from torch.autograd import Variable
 from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--embedding', type=str, default='./data/glove.txt', help="embedding path")
+parser.add_argument('--embedding', type=str, default='./data/glove.6B.50d.txt', help="embedding path")
 parser.add_argument('--unk', type=str, default='<unk>', help="unknown token")
 parser.add_argument('--batch_size', type=int, default=256, help="batch size of the dataset")
 parser.add_argument('--epochs', type=int, default=100, help="number of epochs")
+parser.add_argument('--hidden_dim', type=int, default=100, help="dimension of hidden layers")
+parser.add_argument('--lambda_reg', type=float, default=0.5, help="regularization parameter of Frobenius term")
 parser.add_argument('--no_cuda', action='store_true', default=False, help='disable the gpu')
 parser.add_argument('--save_dir', type=str, default='snapshot', help='where to save the snapshot')
 args = parser.parse_args()
@@ -25,6 +27,7 @@ class dataset():
         self.data = []
         self.stoi = {}
         self.embedding = args.embedding
+        self.unk = args.unk
 
     def prepare(self):
         with open(args.embedding, "rb") as f:
@@ -43,9 +46,6 @@ class dataset():
                     pass
 
         self.itos = {self.stoi[word]: word for word in self.stoi.keys()}
-        self.chars_set = set(''.join(filter(lambda x: x != args.unk, self.stoi.keys())))
-        self.chars_set = [args.cpad] + list(self.chars_set)
-        self.ctoi = {char: i for i, char in enumerate(self.chars_set)}
 
 class Dataset(torch.utils.data.Dataset):
     """
@@ -71,6 +71,9 @@ print("\nLoading data...")
 
 dataset = dataset(args)
 dataset.prepare()
+
+args.vocab_size = len(dataset.data) + 1
+args.embed_dim = len(dataset.data[0])
 
 print("\nParameters:")
 for attr, value in sorted(args.__dict__.items()):
